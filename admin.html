@@ -31,7 +31,7 @@
       document.getElementById('login-screen').style.display='none';
       document.getElementById('app').style.display='grid';
       document.getElementById('user-name').textContent=u.email;
-      loadAll();
+      if (typeof window.loadAll === 'function') window.loadAll();
     } else {
       document.getElementById('login-screen').style.display='flex';
       document.getElementById('app').style.display='none';
@@ -710,17 +710,37 @@ async function doUpload(files){
   document.getElementById('ph-file').value='';
 }
 
+function escHtml(v){
+  return String(v ?? '').replace(/[&<>"']/g, c => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  }[c]));
+}
+
 function renderPhotos(photos){
   const g=document.getElementById('ph-grid');
   const countEl=document.getElementById('ph-count');
   if(countEl) countEl.textContent=photos&&photos.length?'('+photos.length+' photo'+(photos.length>1?'s':'')+')':'(0 photo)';
-  if(!photos||!photos.length){g.innerHTML='<p class="ph-empty">Aucune photo pour le moment. Ajoutez-en ci-dessus !</p>';return}
+  if(!photos||!photos.length){
+    g.innerHTML='<p class="ph-empty">Aucune photo pour le moment. Ajoutez-en ci-dessus !</p>';
+    return;
+  }
+
+  // Important : ne pas injecter p.id / p.path directement dans onclick.
+  // Si le nom du fichier contient une apostrophe, cela casse JavaScript :
+  // onclick="delPhoto('id','photo d'été.jpg')" => SyntaxError.
   g.innerHTML=photos.map(p=>`
-    <div class="ph-item" id="phi-${p.id}">
-      <img src="${p.url}" alt="${p.caption||''}" loading="lazy">
-      <button class="ph-del" onclick="delPhoto('${p.id}','${p.path||''}')" title="Supprimer">✕</button>
-      <div class="ph-cap" data-id="${p.id}" onclick="editCap(this)" title="Cliquez pour modifier le titre" style="cursor:pointer">${p.caption||'+ Ajouter un titre'}</div>
+    <div class="ph-item" id="phi-${escHtml(p.id)}">
+      <img src="${escHtml(p.url)}" alt="${escHtml(p.caption||'')}" loading="lazy">
+      <button class="ph-del" type="button" data-id="${escHtml(p.id)}" data-path="${escHtml(p.path||'')}" title="Supprimer">✕</button>
+      <div class="ph-cap" data-id="${escHtml(p.id)}" title="Cliquez pour modifier le titre" style="cursor:pointer">${escHtml(p.caption||'+ Ajouter un titre')}</div>
     </div>`).join('');
+
+  g.querySelectorAll('.ph-del').forEach(btn=>{
+    btn.addEventListener('click',()=>delPhoto(btn.dataset.id, btn.dataset.path || ''));
+  });
+  g.querySelectorAll('.ph-cap').forEach(cap=>{
+    cap.addEventListener('click',()=>editCap(cap));
+  });
 }
 
 async function editCap(el){
@@ -975,6 +995,14 @@ async function clearSection(section,label){
     if(msgEl){msgEl.textContent='❌ Erreur : '+e.message;msgEl.className='save-msg err';msgEl.style.display='inline';}
   }
 }
+
+// Rend les fonctions accessibles aux boutons HTML onclick et au script Firebase type="module"
+Object.assign(window, {
+  doLogin, doLogout, nav, saveSection, addEvent, renderEvents,
+  onOver, onLeave, onDrop, doUpload, renderPhotos, editCap, delPhoto,
+  updateCarte, genererCarte, deleteMembre, renderMembres, saveReseaux,
+  showMsg, loadAll
+});
 </script>
 </body>
 </html>
