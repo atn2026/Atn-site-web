@@ -557,8 +557,9 @@ function doLogout(){window._fb.signOut(window._fb.auth)}
 function nav(id,btn){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.sb-btn').forEach(b=>b.classList.remove('active'));
-  document.getElementById('p-'+id).classList.add('active');
-  btn.classList.add('active');
+  var panel=document.getElementById('p-'+id);
+  if(panel) panel.classList.add('active');
+  if(btn) btn.classList.add('active');
   if(id==='membres') loadMembres();
 }
 
@@ -722,15 +723,17 @@ function renderPhotos(photos){
     </div>`).join('');
 }
 
-async function editCaption(id,currentCap){
+async function editCaption(id,el){
+  const currentCap=el.textContent.replace('+ Ajouter un titre','');
   const newCap=prompt('Titre de la photo :',currentCap);
   if(newCap===null) return;
-  const {db,ref,set}=window._fb;
+  const {db,ref,set,get}=window._fb;
   try{
-    const snap=await window._fb.get(ref(db,'atn/photos/'+id));
+    const snap=await get(ref(db,'atn/photos/'+id));
     if(snap.exists()){
       const data=snap.val();
       await set(ref(db,'atn/photos/'+id),{...data,caption:newCap});
+      el.textContent=newCap||'+ Ajouter un titre';
     }
   }catch(e){alert('Erreur : '+e.message)}
 }
